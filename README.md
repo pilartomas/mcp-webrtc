@@ -36,7 +36,7 @@ Instead, the existing A2A connection will act as the signalling connection for W
 
 ```typescript
   import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-  import { WebRTCServerTransport } from "./webrtc.js";
+  import { WebRTCServerTransport } from "mcp-webrtc";
 
   const server = new McpServer({
     name: "example-server",
@@ -45,18 +45,26 @@ Instead, the existing A2A connection will act as the signalling connection for W
   server.registerTool("greet", {}, () => ({
     content: [{ type: "text", text: "Howdy" }],
   }));
-  await server.connect(new WebRTCServerTransport());
+  await server.connect(new WebRTCServerTransport({
+    onSignal: async (data) => { 
+      // forward data via signalling channel and call peer.signal(data)
+    }
+  }));
 ```
 
 ```typescript
   import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-  import { WebRTCClientTransport } from "./webrtc.js";
+  import { WebRTCClientTransport } from "mcp-webrtc";
 
   const client = new Client({
     name: "example-client",
     version: "1.0.0",
   });
-  await client.connect(new WebRTCClientTransport());
+  await client.connect(new WebRTCClientTransport({
+    onSignal: async (data) => { 
+      // forward data via signalling channel and call peer.signal(data)
+    }
+  }));
 ```
 
 Proceed by exchange the signalling data via artbitrary connection.

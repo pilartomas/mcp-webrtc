@@ -1,6 +1,6 @@
 import express from "express";
 import { v4 as uuidv4 } from "uuid";
-import type { AgentCard, DataPart, Message, Task } from "@a2a-js/sdk";
+import type { AgentCard, DataPart, Task } from "@a2a-js/sdk";
 import {
   type AgentExecutor,
   RequestContext,
@@ -50,8 +50,11 @@ class MCPExecutor implements AgentExecutor {
       name: "example-client",
       version: "1.0.0",
     });
-    const transport = new WebRTCClientTransport(
-      (data) => {
+    const transport = new WebRTCClientTransport({
+      onStart: async () => {
+        await transport.signal(dataPart.data);
+      },
+      onSignal: (data) => {
         eventBus.publish({
           kind: "status-update",
           contextId,
@@ -68,10 +71,9 @@ class MCPExecutor implements AgentExecutor {
           final: false,
         });
       },
-      { wrtc }
-    );
+      peerOptions: { wrtc, trickle: false },
+    });
     await client.connect(transport);
-    transport.signal(dataPart.data);
     const { tools } = await client.listTools();
 
     eventBus.publish({
@@ -79,7 +81,7 @@ class MCPExecutor implements AgentExecutor {
       contextId,
       taskId,
       status: {
-        state: "working",
+        state: "completed",
         message: {
           kind: "message",
           messageId: uuidv4(),
@@ -87,7 +89,7 @@ class MCPExecutor implements AgentExecutor {
           parts: tools.map((tool) => ({ kind: "text", text: tool.name })),
         },
       },
-      final: false,
+      final: true,
     });
     eventBus.finished();
   }

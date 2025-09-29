@@ -3,24 +3,30 @@ import type {
   Transport,
   TransportSendOptions,
 } from "@modelcontextprotocol/sdk/shared/transport.js";
-import type { JSONRPCMessage } from "@modelcontextprotocol/sdk/types.js";
+import {
+  JSONRPCMessageSchema,
+  type JSONRPCMessage,
+} from "@modelcontextprotocol/sdk/types.js";
 
-class WebRTCTransport implements Transport {
-  public peer?: SimplePeer.Instance;
+export interface WebRTCTransportOptions {
+  onSignal: (data: any) => Promise<void> | void;
+  onStart?: () => Promise<void> | void;
+  peerOptions?: SimplePeer.Options;
+}
+
+export class WebRTCTransport implements Transport {
+  private peer?: SimplePeer.Instance;
 
   onclose?: () => void;
   onerror?: (error: Error) => void;
   onmessage?: (message: JSONRPCMessage) => void;
 
-  constructor(
-    private onSignal: (data: any) => void,
-    private readonly options?: SimplePeer.Options
-  ) {}
+  constructor(private readonly options: WebRTCTransportOptions) {}
 
   async start(): Promise<void> {
-    this.peer = new SimplePeer(this.options);
+    this.peer = new SimplePeer(this.options.peerOptions);
     this.peer.on("data", (data) => {
-      this.onmessage?.(JSON.parse(data));
+      this.onmessage?.(JSONRPCMessageSchema.parse(JSON.parse(data)));
     });
     this.peer.on("close", () => {
       this.onclose?.();
@@ -28,19 +34,27 @@ class WebRTCTransport implements Transport {
     this.peer.on("error", (err) => {
       this.onerror?.(err);
     });
-    this.peer.on("signal", (data) => {
-      this.onSignal(data);
+    this.peer.on("signal", async (data) => {
+      try {
+        await this.options.onSignal(data);
+      } catch (err) {
+        console.error("onSignal callback", err);
+      }
     });
+    await this.options.onStart?.();
   }
 
   async send(message: JSONRPCMessage, options?: TransportSendOptions) {
     if (!this.peer) throw new Error("Transport hasn't started");
     if (!this.peer.connected)
-      await new Promise((res, rej) => this.peer?.on("connect", res));
+      await new Promise((res, rej) => {
+        this.peer?.once("connect", res);
+        this.peer?.once("close", rej);
+      });
     this.peer.send(JSON.stringify(message));
   }
 
-  signal(data: any) {
+  async signal(data: any) {
     if (!this.peer) throw new Error("Transport hasn't started");
     this.peer.signal(data);
   }
@@ -52,13 +66,19 @@ class WebRTCTransport implements Transport {
 }
 
 export class WebRTCClientTransport extends WebRTCTransport {
-  constructor(onSignal: (data: any) => void, options?: SimplePeer.Options) {
-    super(onSignal, { ...options, initiator: false });
+  constructor(options: WebRTCTransportOptions) {
+    super({
+      ...options,
+      peerOptions: { ...options.peerOptions, initiator: false },
+    });
   }
 }
 
 export class WebRTCServerTransport extends WebRTCTransport {
-  constructor(onSignal: (data: any) => void, options?: SimplePeer.Options) {
-    super(onSignal, { ...options, initiator: true });
+  constructor(options: WebRTCTransportOptions) {
+    super({
+      ...options,
+      peerOptions: { ...options.peerOptions, initiator: true },
+    });
   }
 }

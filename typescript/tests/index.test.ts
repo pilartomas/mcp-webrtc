@@ -2,6 +2,7 @@ import { expect, test } from "vitest";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { WebRTCClientTransport, WebRTCServerTransport } from "../src/index.js";
+import wrtc from "@roamhq/wrtc";
 
 test("client connects to server and lists tools", async () => {
   // Prepare client
@@ -9,7 +10,6 @@ test("client connects to server and lists tools", async () => {
     name: "example-client",
     version: "1.0.0",
   });
-  const clientTransport = new WebRTCClientTransport();
 
   // Prepare server
   const server = new McpServer({
@@ -19,11 +19,23 @@ test("client connects to server and lists tools", async () => {
   server.registerTool("greet", {}, () => ({
     content: [{ type: "text", text: "Howdy" }],
   }));
-  const serverTransport = new WebRTCServerTransport();
 
-  // SIGNAL exchange would happen e.g. through A2A protocol
-  clientTransport.onsignal = (data) => serverTransport.signal(data);
-  serverTransport.onsignal = (data) => clientTransport.signal(data);
+  const clientTransport = new WebRTCClientTransport({
+    onSignal: async (data) => {
+      await serverTransport.signal(data);
+    },
+    peerOptions: {
+      wrtc,
+    },
+  });
+  const serverTransport = new WebRTCServerTransport({
+    onSignal: async (data) => {
+      await clientTransport.signal(data);
+    },
+    peerOptions: {
+      wrtc,
+    },
+  });
 
   // Connect
   await server.connect(serverTransport);

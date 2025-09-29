@@ -1,0 +1,39 @@
+name: Release
+
+on:
+    workflow_dispatch:
+    release:
+        types: [published]
+
+permissions:
+    contents: read
+    id-token: write
+
+jobs:
+    publish-typescript:
+        name: NPM package
+        runs-on: ubuntu-latest
+        environment: release
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v4
+            - name: Install pnpm
+              uses: pnpm/action-setup@v4
+              with:
+                  version: 10
+            - name: Setup Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: 22.x
+                  registry-url: https://registry.npmjs.org
+                  cache: pnpm
+            - name: Install dependencies
+              run: pnpm install --frozen-lockfile
+            - name: Build package
+              run: pnpm --filter mcp-webrtc run build
+            - run: |
+                  echo "registry=https://registry.npmjs.org/" > .npmrc
+                  echo "//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}" >> .npmrc
+                  pnpm --filter mcp-webrtc publish --access public --no-git-checks
+              env:
+                  NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
