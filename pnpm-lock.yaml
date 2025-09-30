@@ -11,9 +11,6 @@ importers:
       '@modelcontextprotocol/sdk':
         specifier: ^1.18.2
         version: 1.18.2
-      '@roamhq/wrtc':
-        specifier: ^0.9.1
-        version: 0.9.1
       simple-peer:
         specifier: ^9.11.1
         version: 9.11.1
@@ -21,6 +18,9 @@ importers:
       '@a2a-js/sdk':
         specifier: ^0.3.4
         version: 0.3.4(express@5.1.0)
+      '@roamhq/wrtc':
+        specifier: ^0.9.1
+        version: 0.9.1
       '@types/express':
         specifier: ^5.0.3
         version: 5.0.3

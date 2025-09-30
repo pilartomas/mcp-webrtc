@@ -1,6 +1,6 @@
 {
   "name": "mcp-webrtc",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "author": "Tomas Pilar",
   "description": "WebRTC Transport for Model Context Protocol",
   "license": "MIT",
@@ -20,11 +20,11 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.18.2",
-    "@roamhq/wrtc": "^0.9.1",
     "simple-peer": "^9.11.1"
   },
   "devDependencies": {
     "@a2a-js/sdk": "^0.3.4",
+    "@roamhq/wrtc": "^0.9.1",
     "@types/express": "^5.0.3",
     "@types/node": "^24.5.2",
     "@types/simple-peer": "^9.11.8",
