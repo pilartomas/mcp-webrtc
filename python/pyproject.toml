@@ -2,6 +2,7 @@
 name = "mcp-webrtc"
 version = "0.0.0"
 description = "WebRTC Transport for Model Context Protocol"
+license = "MIT"
 readme = "README.md"
 authors = [{ name = "Tomas Pilar", email = "thomas7pilar@gmail.com" }]
 requires-python = ">=3.13"
