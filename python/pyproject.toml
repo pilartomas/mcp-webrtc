@@ -1,12 +1,15 @@
 [project]
 name = "mcp-webrtc"
-version = "0.0.4"
+version = "0.0.5"
 description = "WebRTC Transport for Model Context Protocol"
 license = "MIT"
 readme = "README.md"
 authors = [{ name = "Tomas Pilar", email = "thomas7pilar@gmail.com" }]
-requires-python = ">=3.13"
+requires-python = ">=3.11"
 dependencies = ["aiortc>=1.13.0", "mcp>=1.15.0"]
+
+[project.urls]
+repository = "https://github.com/pilartomas/mcp-webrtc"
 
 [build-system]
 requires = ["hatchling"]

@@ -1,9 +1,16 @@
 {
   "name": "mcp-webrtc",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "author": "Tomas Pilar",
   "description": "WebRTC Transport for Model Context Protocol",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pilartomas/mcp-webrtc.git"
+  },
+  "bugs": {
+    "url": "https://github.com/pilartomas/mcp-webrtc/issues"
+  },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "type": "module",
