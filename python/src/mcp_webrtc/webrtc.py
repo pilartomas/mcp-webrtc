@@ -60,19 +60,20 @@ async def webrtc_transport(
         except anyio.ClosedResourceError:
             await anyio.lowlevel.checkpoint()
 
+    async def message_handler(message):
+        try:
+            message = types.JSONRPCMessage.model_validate_json(message)
+        except Exception as exc:
+            read_stream_writer.send_nowait(exc)
+        read_stream_writer.send_nowait(SessionMessage(message))
+
     await signaling.connect()
     channel_opened = asyncio.Event()
     channel_closed = asyncio.Event()
     if params.initiator:
         channel = pc.createDataChannel("mcp")
 
-        @channel.on("message")
-        def on_message(message):
-            try:
-                message = types.JSONRPCMessage.model_validate_json(message)
-            except Exception as exc:
-                read_stream_writer.send_nowait(exc)
-            read_stream_writer.send_nowait(SessionMessage(message))
+        channel.on("message")(message_handler)
 
         @channel.on("open")
         def on_open():
@@ -91,15 +92,8 @@ async def webrtc_transport(
         def on_datachannel(datachannel):
             nonlocal channel
             channel = datachannel
+            channel.on("message")(message_handler)
             channel_opened.set()
-
-            @channel.on("message")
-            def on_message(message):
-                try:
-                    message = types.JSONRPCMessage.model_validate_json(message)
-                except Exception as exc:
-                    read_stream_writer.send_nowait(exc)
-                read_stream_writer.send_nowait(SessionMessage(message))
 
     async with anyio.create_task_group() as tg:
         tg.start_soon(consume_signaling)
@@ -108,9 +102,7 @@ async def webrtc_transport(
         try:
             yield read_stream, write_stream
         finally:
-            await write_stream_reader.aclose()
             await write_stream.aclose()
-            await read_stream_writer.aclose()
             await read_stream.aclose()
             await pc.close()
             await signaling.close()
