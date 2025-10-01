@@ -6,10 +6,28 @@ There are scenarios where neither **STDIO** nor **StreamableHTTP** transport can
 
 ```python
     from mcp_webrtc import webrtc_server_transport
-    from aiortc.contrib.signaling import CopyPasteSignaling
+    from aiortc.contrib.signaling import TcpSocketSignaling
+    from mcp.server.lowlevel import Server
+    from mcp.types import Tool
 
-    async with webrtc_server_transport(CopyPasteSignaling()) as (read, write):
-        app.run(
+    app = Server("mcp-greeter")
+
+    @app.list_tools()
+    async def list_tools() -> list[Tool]:
+        return [
+            Tool(
+                name="greet",
+                description="Greets the caller",
+                inputSchema={
+                    "type": "object",
+                    "required": [],
+                    "properties": {},
+                },
+            )
+        ]
+
+    async with webrtc_server_transport(TcpSocketSignaling("localhost", 8000)) as (read, write):
+        await app.run(
             read, write, app.create_initialization_options()
         )
 ```
@@ -17,10 +35,10 @@ There are scenarios where neither **STDIO** nor **StreamableHTTP** transport can
 ```python
     from mcp import ClientSession
     from mcp_webrtc import webrtc_client_transport
-    from aiortc.contrib.signaling import CopyPasteSignaling
+    from aiortc.contrib.signaling import TcpSocketSignaling
 
     async with (
-        webrtc_client_transport(client_signaling) as (
+        webrtc_client_transport(TcpSocketSignaling("localhost", 8000)) as (
             read,
             write,
         ),

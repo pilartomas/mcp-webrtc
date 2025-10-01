@@ -34,37 +34,47 @@ Instead, the existing A2A connection will act as the signalling connection for W
 
 # Usage
 
-```typescript
-  import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-  import { WebRTCServerTransport } from "mcp-webrtc";
+```python
+    from mcp_webrtc import webrtc_server_transport
+    from aiortc.contrib.signaling import TcpSocketSignaling
+    from mcp.server.lowlevel import Server
+    from mcp.types import Tool
 
-  const server = new McpServer({
-    name: "example-server",
-    version: "1.0.0",
-  });
-  server.registerTool("greet", {}, () => ({
-    content: [{ type: "text", text: "Howdy" }],
-  }));
-  await server.connect(new WebRTCServerTransport({
-    onSignal: async (data) => { 
-      // forward data via signalling channel and call peer.signal(data)
-    }
-  }));
+    app = Server("mcp-greeter")
+
+    @app.list_tools()
+    async def list_tools() -> list[Tool]:
+        return [
+            Tool(
+                name="greet",
+                description="Greets the caller",
+                inputSchema={
+                    "type": "object",
+                    "required": [],
+                    "properties": {},
+                },
+            )
+        ]
+
+    async with webrtc_server_transport(TcpSocketSignaling("localhost", 8000)) as (read, write):
+        await app.run(
+            read, write, app.create_initialization_options()
+        )
 ```
 
-```typescript
-  import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-  import { WebRTCClientTransport } from "mcp-webrtc";
+```python
+    from mcp import ClientSession
+    from mcp_webrtc import webrtc_client_transport
+    from aiortc.contrib.signaling import TcpSocketSignaling
 
-  const client = new Client({
-    name: "example-client",
-    version: "1.0.0",
-  });
-  await client.connect(new WebRTCClientTransport({
-    onSignal: async (data) => { 
-      // forward data via signalling channel and call peer.signal(data)
-    }
-  }));
+    async with (
+        webrtc_client_transport(TcpSocketSignaling("localhost", 8000)) as (
+            read,
+            write,
+        ),
+        ClientSession(read, write) as session,
+    ):
+        await session.initialize()
+        result = await session.list_tools()
+        print(result.tools)
 ```
-
-Proceed by exchange the signalling data via arbitrary connection.
