@@ -2,11 +2,15 @@
 name = "mcp-webrtc"
 version = "0.0.0"
 description = "WebRTC Transport for Model Context Protocol"
+license = "MIT"
 readme = "README.md"
 authors = [{ name = "Tomas Pilar", email = "thomas7pilar@gmail.com" }]
 requires-python = ">=3.13"
-dependencies = []
+dependencies = ["aiortc>=1.13.0", "mcp>=1.15.0"]
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = ["pytest>=8.4.2", "pytest-asyncio>=1.2.0"]
