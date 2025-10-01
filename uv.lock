@@ -366,7 +366,7 @@ wheels = [
 
 [[package]]
 name = "mcp-webrtc"
-version = "0.0.3"
+version = "0.0.4"
 source = { editable = "python" }
 dependencies = [
     { name = "aiortc" },

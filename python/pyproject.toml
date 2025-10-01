@@ -1,6 +1,6 @@
 [project]
 name = "mcp-webrtc"
-version = "0.0.0"
+version = "0.0.4"
 description = "WebRTC Transport for Model Context Protocol"
 license = "MIT"
 readme = "README.md"
