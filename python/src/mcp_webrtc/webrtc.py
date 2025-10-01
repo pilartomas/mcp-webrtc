@@ -5,7 +5,12 @@ from contextlib import asynccontextmanager
 import anyio
 from anyio.streams.memory import MemoryObjectReceiveStream, MemoryObjectSendStream
 from pydantic import BaseModel
-from aiortc import RTCIceCandidate, RTCPeerConnection, RTCSessionDescription
+from aiortc import (
+    RTCDataChannel,
+    RTCIceCandidate,
+    RTCPeerConnection,
+    RTCSessionDescription,
+)
 from aiortc.contrib.signaling import (
     BYE,
     BaseSignaling,
@@ -18,6 +23,7 @@ logger = logging.getLogger(__name__)
 
 class WebRTCParameters(BaseModel):
     initiator: bool = False
+    channel_name: str = "mcp"
 
 
 @asynccontextmanager
@@ -71,7 +77,7 @@ async def webrtc_transport(
     channel_opened = asyncio.Event()
     channel_closed = asyncio.Event()
     if params.initiator:
-        channel = pc.createDataChannel("mcp")
+        channel = pc.createDataChannel(params.channel_name)
 
         channel.on("message")(message_handler)
 
@@ -89,7 +95,7 @@ async def webrtc_transport(
         channel = None
 
         @pc.on("datachannel")
-        def on_datachannel(datachannel):
+        def on_datachannel(datachannel: RTCDataChannel):
             nonlocal channel
             channel = datachannel
             channel.on("message")(message_handler)
