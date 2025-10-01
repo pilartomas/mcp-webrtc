@@ -30,8 +30,8 @@ async def webrtc_transport(
     write_stream: MemoryObjectSendStream[SessionMessage]
     write_stream_reader: MemoryObjectReceiveStream[SessionMessage]
 
-    read_stream_writer, read_stream = anyio.create_memory_object_stream(10)
-    write_stream, write_stream_reader = anyio.create_memory_object_stream(10)
+    read_stream_writer, read_stream = anyio.create_memory_object_stream(0)
+    write_stream, write_stream_reader = anyio.create_memory_object_stream(0)
 
     pc = RTCPeerConnection()
 
@@ -64,8 +64,8 @@ async def webrtc_transport(
         try:
             message = types.JSONRPCMessage.model_validate_json(message)
         except Exception as exc:
-            read_stream_writer.send_nowait(exc)
-        read_stream_writer.send_nowait(SessionMessage(message))
+            await read_stream_writer.send(exc)
+        await read_stream_writer.send(SessionMessage(message))
 
     await signaling.connect()
     channel_opened = asyncio.Event()
