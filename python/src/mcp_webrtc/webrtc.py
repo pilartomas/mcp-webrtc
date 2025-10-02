@@ -1,10 +1,10 @@
 import asyncio
 import logging
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
 import anyio
-from anyio.streams.memory import MemoryObjectReceiveStream, MemoryObjectSendStream
-from pydantic import BaseModel
+import mcp.types as types
 from aiortc import (
     RTCDataChannel,
     RTCIceCandidate,
@@ -15,21 +15,24 @@ from aiortc.contrib.signaling import (
     BYE,
     BaseSignaling,
 )
+from anyio.streams.memory import MemoryObjectReceiveStream, MemoryObjectSendStream
 from mcp.shared.message import SessionMessage
-import mcp.types as types
+from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
 
 class WebRTCParameters(BaseModel):
-    initiator: bool = False
+    initiator: bool
     channel_name: str = "mcp"
 
 
 @asynccontextmanager
 async def webrtc_transport(
-    signaling: BaseSignaling, params: WebRTCParameters = WebRTCParameters()
-):
+    signaling: BaseSignaling, params: WebRTCParameters
+) -> AsyncGenerator[
+    tuple[MemoryObjectReceiveStream[SessionMessage | Exception], MemoryObjectReceiveStream[SessionMessage]]
+]:
     read_stream: MemoryObjectReceiveStream[SessionMessage | Exception]
     read_stream_writer: MemoryObjectSendStream[SessionMessage | Exception]
 
@@ -41,7 +44,7 @@ async def webrtc_transport(
 
     pc = RTCPeerConnection()
 
-    async def consume_signaling():
+    async def consume_signaling() -> None:
         while True:
             obj = await signaling.receive()
             if isinstance(obj, RTCSessionDescription):
@@ -54,19 +57,17 @@ async def webrtc_transport(
             elif obj is BYE:
                 break
 
-    async def message_writer():
+    async def message_writer() -> None:
         try:
             async with write_stream_reader:
                 async for session_message in write_stream_reader:
-                    json = session_message.message.model_dump_json(
-                        by_alias=True, exclude_none=True
-                    )
+                    json = session_message.message.model_dump_json(by_alias=True, exclude_none=True)
                     await channel_opened.wait()
                     channel.send(json)
         except anyio.ClosedResourceError:
             await anyio.lowlevel.checkpoint()
 
-    async def message_handler(message):
+    async def message_handler(message) -> None:
         try:
             message = types.JSONRPCMessage.model_validate_json(message)
         except Exception as exc:
@@ -82,11 +83,11 @@ async def webrtc_transport(
         channel.on("message")(message_handler)
 
         @channel.on("open")
-        def on_open():
+        def on_open() -> None:
             channel_opened.set()
 
         @channel.on("close")
-        def on_close():
+        def on_close() -> None:
             channel_closed.set()
 
         await pc.setLocalDescription(await pc.createOffer())
@@ -95,7 +96,7 @@ async def webrtc_transport(
         channel = None
 
         @pc.on("datachannel")
-        def on_datachannel(datachannel: RTCDataChannel):
+        def on_datachannel(datachannel: RTCDataChannel) -> None:
             nonlocal channel
             channel = datachannel
             channel.on("message")(message_handler)
@@ -115,19 +116,37 @@ async def webrtc_transport(
             tg.cancel_scope.cancel()
 
 
+class WebRTCClientParameters(WebRTCParameters):
+    initiator: bool = False
+
+
 @asynccontextmanager
 async def webrtc_client_transport(
     signaling: BaseSignaling,
-    params: WebRTCParameters = WebRTCParameters(initiator=False),
-):
-    async with webrtc_transport(signaling=signaling, params=params) as (read, write):
+    params: WebRTCClientParameters | None = None,
+) -> AsyncGenerator[
+    tuple[MemoryObjectReceiveStream[SessionMessage | Exception], MemoryObjectReceiveStream[SessionMessage]]
+]:
+    async with webrtc_transport(signaling=signaling, params=params or WebRTCClientParameters()) as (
+        read,
+        write,
+    ):
         yield read, write
+
+
+class WebRTCServerParameters(WebRTCParameters):
+    initiator: bool = True
 
 
 @asynccontextmanager
 async def webrtc_server_transport(
     signaling: BaseSignaling,
-    params: WebRTCParameters = WebRTCParameters(initiator=True),
-):
-    async with webrtc_transport(signaling=signaling, params=params) as (read, write):
+    params: WebRTCServerParameters | None = None,
+) -> AsyncGenerator[
+    tuple[MemoryObjectReceiveStream[SessionMessage | Exception], MemoryObjectReceiveStream[SessionMessage]]
+]:
+    async with webrtc_transport(signaling=signaling, params=params or WebRTCServerParameters()) as (
+        read,
+        write,
+    ):
         yield read, write
