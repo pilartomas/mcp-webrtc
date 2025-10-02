@@ -1,10 +1,28 @@
 # WebRTC Transport for Model Context Protocol
 
-There are scenarios where neither **STDIO** nor **StreamableHTTP** transport can be used to connect an MCP client to an MCP server. **WebRTC** can often be used instead if there is some sort of signalling connection established between the two parties.
+[The Model Context Protocol (MCP)](https://modelcontextprotocol.io) is an open standard for connecting AI applications to external systems, such as tools and data sources. It defines several transport mechanisms for client-server communication, including STDIO (over standard input/output) and Streamable HTTP (for web-based streaming).
 
-# Example
+However, there are scenarios—such as in browser environments or firewalled networks—where neither STDIO nor Streamable HTTP can effectively connect an MCP client to an MCP server. In these cases, [WebRTC](https://webrtc.org/) provides a peer-to-peer alternative, leveraging real-time communication capabilities, provided a signaling connection (e.g., via WebSockets or another channel) is established between the parties.
 
-For example, a remote A2A agent might need to use our local MCP server to access the filesystem on the A2A client's host. The situation is as follows:
+This repository implements a WebRTC-based transport layer compatible with the MCP specification, enabling seamless integration in constrained networking setups.
+
+## Installation
+
+### Python
+
+```bash
+pip install mcp-webrtc
+```
+
+### Typescript
+
+```bash
+npm install mcp-webrtc
+```
+
+## Example
+
+For instance, a remote Agent-to-Agent (A2A) agent might need to leverage a local Model Context Protocol (MCP) server to access the filesystem on the A2A client's host. The A2A Protocol, developed by Google, enables secure inter-agent communication and complements MCP by facilitating agent-to-agent interactions. In this setup, the scenario unfolds as follows:
 
 ```mermaid
 ---
@@ -28,11 +46,13 @@ flowchart LR
     Local <-- MCP --> Remote
 ```
 
-The MCP Client on the remote A2A agent can directly connect to our local MCP server over HTTP due to NATs. Also, even if no NATs are involved we would have to ensure it is really the agent who attempts to connect to the server and noone else. 
+Directly connecting the MCP client on the remote A2A agent to the local MCP server over HTTP may be impractical due to Network Address Translation (NAT) traversal challenges or firewall restrictions. Even in scenarios without NATs, authentication is crucial to verify that the connection originates from the legitimate agent and no one else.
 
-Instead, the existing A2A connection will act as the signalling connection for WebRTC, it will exchange WebRTC signalling data so that MCP connection can be established.
+As an alternative, the established A2A connection serves as the signaling channel for WebRTC. It exchanges the necessary WebRTC signaling data (e.g., SDP offers/answers and ICE candidates), enabling a secure, peer-to-peer MCP connection to be established despite network constraints.
 
-# Usage
+## Usage
+
+### Server
 
 ```python
     from mcp_webrtc import webrtc_server_transport
@@ -61,6 +81,8 @@ Instead, the existing A2A connection will act as the signalling connection for W
             read, write, app.create_initialization_options()
         )
 ```
+
+### Client
 
 ```python
     from mcp import ClientSession

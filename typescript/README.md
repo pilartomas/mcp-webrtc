@@ -1,8 +1,20 @@
 # WebRTC Transport for Model Context Protocol
 
-There are scenarios where neither **STDIO** nor **StreamableHTTP** transport can be used to connect an MCP client to an MCP server. **WebRTC** can often be used instead if there is some sort of signalling connection established between the two parties.
+[The Model Context Protocol (MCP)](https://modelcontextprotocol.io) is an open standard for connecting AI applications to external systems, such as tools and data sources. It defines several transport mechanisms for client-server communication, including STDIO (over standard input/output) and Streamable HTTP (for web-based streaming).
 
-# Usage
+However, there are scenarios—such as in browser environments or firewalled networks—where neither STDIO nor Streamable HTTP can effectively connect an MCP client to an MCP server. In these cases, [WebRTC](https://webrtc.org/) provides a peer-to-peer alternative, leveraging real-time communication capabilities, provided a signaling connection (e.g., via WebSockets or another channel) is established between the parties.
+
+This repository implements a WebRTC-based transport layer compatible with the MCP specification, enabling seamless integration in constrained networking setups.
+
+## Installation
+
+```bash
+npm install mcp-webrtc
+```
+
+## Usage
+
+### Server
 
 ```typescript
   import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -21,6 +33,8 @@ There are scenarios where neither **STDIO** nor **StreamableHTTP** transport can
     }
   }));
 ```
+
+### Client
 
 ```typescript
   import { Client } from "@modelcontextprotocol/sdk/client/index.js";
