@@ -6,7 +6,7 @@ However, there are scenarios—such as in browser environments or firewalled net
 
 This repository implements a WebRTC-based transport layer compatible with the MCP specification, enabling seamless integration in constrained networking setups.
 
-# Installation
+## Installation
 
 Python:
 
@@ -20,7 +20,7 @@ Typescript:
 npm install mcp-webrtc
 ```
 
-# Example
+## Example
 
 For example, a remote A2A agent might need to use our local MCP server to access the filesystem on the A2A client's host. The situation is as follows:
 
@@ -50,9 +50,9 @@ The MCP Client on the remote A2A agent can directly connect to our local MCP ser
 
 Instead, the existing A2A connection will act as the signalling connection for WebRTC, it will exchange WebRTC signalling data so that MCP connection can be established.
 
-# Usage
+## Usage
 
-Server:
+### Server
 
 ```python
     from mcp_webrtc import webrtc_server_transport
@@ -82,7 +82,7 @@ Server:
         )
 ```
 
-Client:
+### Client
 
 ```python
     from mcp import ClientSession
