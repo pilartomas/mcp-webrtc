@@ -67,7 +67,7 @@ async def webrtc_transport(
         except anyio.ClosedResourceError:
             await anyio.lowlevel.checkpoint()
 
-    async def message_handler(message) -> None:
+    async def message_handler(message: str | bytes) -> None:
         try:
             message = types.JSONRPCMessage.model_validate_json(message)
         except Exception as exc:
