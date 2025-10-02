@@ -22,7 +22,7 @@ npm install mcp-webrtc
 
 ## Example
 
-For example, a remote A2A agent might need to use our local MCP server to access the filesystem on the A2A client's host. The situation is as follows:
+For instance, a remote Agent-to-Agent (A2A) agent might need to leverage a local Model Context Protocol (MCP) server to access the filesystem on the A2A client's host. The A2A Protocol, developed by Google, enables secure inter-agent communication and complements MCP by facilitating agent-to-agent interactions. In this setup, the scenario unfolds as follows:
 
 ```mermaid
 ---
@@ -46,9 +46,9 @@ flowchart LR
     Local <-- MCP --> Remote
 ```
 
-The MCP Client on the remote A2A agent can directly connect to our local MCP server over HTTP due to NATs. Also, even if no NATs are involved we would have to ensure it is really the agent who attempts to connect to the server and noone else. 
+Directly connecting the MCP client on the remote A2A agent to the local MCP server over HTTP may be impractical due to Network Address Translation (NAT) traversal challenges or firewall restrictions. Even in scenarios without NATs, authentication is crucial to verify that the connection originates from the legitimate agent and no one else.
 
-Instead, the existing A2A connection will act as the signalling connection for WebRTC, it will exchange WebRTC signalling data so that MCP connection can be established.
+As an alternative, the established A2A connection serves as the signaling channel for WebRTC. It exchanges the necessary WebRTC signaling data (e.g., SDP offers/answers and ICE candidates), enabling a secure, peer-to-peer MCP connection to be established despite network constraints.
 
 ## Usage
 
