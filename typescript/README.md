@@ -12,7 +12,9 @@ This repository implements a WebRTC-based transport layer compatible with the MC
 npm install mcp-webrtc
 ```
 
-# Usage
+## Usage
+
+### Server
 
 ```typescript
   import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -31,6 +33,8 @@ npm install mcp-webrtc
     }
   }));
 ```
+
+### Client
 
 ```typescript
   import { Client } from "@modelcontextprotocol/sdk/client/index.js";

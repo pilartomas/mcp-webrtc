@@ -8,13 +8,13 @@ This repository implements a WebRTC-based transport layer compatible with the MC
 
 ## Installation
 
-Python:
+### Python
 
 ```bash
 pip install mcp-webrtc
 ```
 
-Typescript:
+### Typescript
 
 ```bash
 npm install mcp-webrtc
