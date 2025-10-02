@@ -32,18 +32,18 @@ config:
   theme: mc
 ---
 flowchart LR
-    subgraph Local
+    subgraph Local["Desktop"]
         direction TB
         AC["A2A Client"]
         MS["MCP Server"]
     end
-    subgraph Remote
+    subgraph Remote["Cloud"]
         direction TB
         AS["A2A Server"]
         MC["MCP Client"]
     end
-    Local <-- A2A --> Remote
-    Local <-- MCP --> Remote
+    AC <-- A2A --> AS
+    MS <-- MCP --> MC
 ```
 
 Directly connecting the MCP client on the remote A2A agent to the local MCP server over HTTP may be impractical due to Network Address Translation (NAT) traversal challenges or firewall restrictions. Even in scenarios without NATs, authentication is crucial to verify that the connection originates from the legitimate agent and no one else.
