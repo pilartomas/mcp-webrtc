@@ -89,26 +89,31 @@ async def webrtc_transport(
             await read_stream_producer.send(exc)
         await read_stream_producer.send(SessionMessage(message))
 
+    async def on_channel_open() -> None:
+        channel_opened.set()
+
+    async def on_channel_close() -> None:
+        await read_stream_producer.aclose()
+        await write_stream_consumer.aclose()
+
     async def init_pc() -> None:
         nonlocal channel
         if params.initiator:
             channel = pc.createDataChannel(params.channel_name)
             channel.on("message")(forward_message_to_read_stream)
-
-            @channel.on("open")
-            def on_open() -> None:
-                channel_opened.set()
-
+            channel.on("open")(on_channel_open)
+            channel.on("close")(on_channel_close)
             await pc.setLocalDescription(await pc.createOffer())
             await signaling.send(pc.localDescription)
         else:
 
             @pc.on("datachannel")
-            def on_datachannel(datachannel: RTCDataChannel) -> None:
+            async def on_datachannel(datachannel: RTCDataChannel) -> None:
                 nonlocal channel
                 channel = datachannel
                 channel.on("message")(forward_message_to_read_stream)
-                channel_opened.set()
+                channel.on("close")(on_channel_close)
+                await on_channel_open()
 
     await signaling.connect()
     async with (

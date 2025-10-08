@@ -31,7 +31,7 @@ class MemorySignaling(BaseSignaling):
     async def send(self, descr: _SignalingObject) -> None:
         await self.write_queue.put(descr)
 
-    async def receive(self) -> Optional[_SignalingObject]:
+    async def receive(self) -> _SignalingObject | None:
         return await self.read_queue.get()
 
 
@@ -92,4 +92,4 @@ async def test_transport(signaling_pair: tuple[MemorySignaling, MemorySignaling]
             result = await session.list_tools()
             assert result.tools[0].name == "greet"
 
-        server_task.cancel()
+        await server_task
