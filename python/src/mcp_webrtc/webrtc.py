@@ -27,90 +27,103 @@ class WebRTCParameters(BaseModel):
     channel_name: str = "mcp"
 
 
+WebRTCTransportStreams = tuple[
+    MemoryObjectReceiveStream[SessionMessage | Exception], MemoryObjectReceiveStream[SessionMessage]
+]
+
+
 @asynccontextmanager
 async def webrtc_transport(
     signaling: BaseSignaling, params: WebRTCParameters
-) -> AsyncGenerator[
-    tuple[MemoryObjectReceiveStream[SessionMessage | Exception], MemoryObjectReceiveStream[SessionMessage]]
-]:
-    read_stream: MemoryObjectReceiveStream[SessionMessage | Exception]
-    read_stream_writer: MemoryObjectSendStream[SessionMessage | Exception]
+) -> AsyncGenerator[WebRTCTransportStreams]:
+    read_stream_consumer: MemoryObjectReceiveStream[SessionMessage | Exception]
+    read_stream_producer: MemoryObjectSendStream[SessionMessage | Exception]
 
-    write_stream: MemoryObjectSendStream[SessionMessage]
-    write_stream_reader: MemoryObjectReceiveStream[SessionMessage]
+    write_stream_producer: MemoryObjectSendStream[SessionMessage]
+    write_stream_consumer: MemoryObjectReceiveStream[SessionMessage]
 
-    read_stream_writer, read_stream = anyio.create_memory_object_stream(0)
-    write_stream, write_stream_reader = anyio.create_memory_object_stream(0)
+    read_stream_producer, read_stream_consumer = anyio.create_memory_object_stream(0)
+    write_stream_producer, write_stream_consumer = anyio.create_memory_object_stream(0)
 
     pc = RTCPeerConnection()
+    channel: RTCDataChannel | None = None
+    channel_opened = asyncio.Event()
 
     async def consume_signaling() -> None:
-        while True:
-            obj = await signaling.receive()
-            if isinstance(obj, RTCSessionDescription):
-                await pc.setRemoteDescription(obj)
-                if obj.type == "offer":
-                    await pc.setLocalDescription(await pc.createAnswer())
-                    await signaling.send(pc.localDescription)
-            elif isinstance(obj, RTCIceCandidate):
-                await pc.addIceCandidate(obj)
-            elif obj is BYE:
-                break
-
-    async def message_writer() -> None:
+        logger.debug("Signaling reception started")
         try:
-            async with write_stream_reader:
-                async for session_message in write_stream_reader:
-                    json = session_message.message.model_dump_json(by_alias=True, exclude_none=True)
-                    await channel_opened.wait()
-                    channel.send(json)
-        except anyio.ClosedResourceError:
-            await anyio.lowlevel.checkpoint()
+            while True:
+                obj = await signaling.receive()
+                if isinstance(obj, RTCSessionDescription):
+                    await pc.setRemoteDescription(obj)
+                    if obj.type == "offer":
+                        await pc.setLocalDescription(await pc.createAnswer())
+                        await signaling.send(pc.localDescription)
+                elif isinstance(obj, RTCIceCandidate):
+                    await pc.addIceCandidate(obj)
+                elif obj is BYE:
+                    break
+        except anyio.get_cancelled_exc_class() as exc:
+            logger.debug(f"Signalling reception has been cancelled: {exc}")
+            raise
+        finally:
+            logger.debug("Signaling reception ended")
 
-    async def message_handler(message: str | bytes) -> None:
+    async def forward_write_stream() -> None:
+        logger.debug("Write stream forwarding started")
+        try:
+            await channel_opened.wait()
+            async for session_message in write_stream_consumer:
+                json = session_message.message.model_dump_json(by_alias=True, exclude_none=True)
+                channel.send(json)
+        except anyio.get_cancelled_exc_class() as exc:
+            logger.debug(f"Write stream forwarding has been cancelled: {exc}")
+            raise
+        finally:
+            logger.debug("Write stream forwarding ended")
+
+    async def forward_message_to_read_stream(message: str | bytes) -> None:
         try:
             message = types.JSONRPCMessage.model_validate_json(message)
         except Exception as exc:
-            await read_stream_writer.send(exc)
-        await read_stream_writer.send(SessionMessage(message))
+            await read_stream_producer.send(exc)
+        await read_stream_producer.send(SessionMessage(message))
+
+    async def init_pc() -> None:
+        nonlocal channel
+        if params.initiator:
+            channel = pc.createDataChannel(params.channel_name)
+            channel.on("message")(forward_message_to_read_stream)
+
+            @channel.on("open")
+            def on_open() -> None:
+                channel_opened.set()
+
+            await pc.setLocalDescription(await pc.createOffer())
+            await signaling.send(pc.localDescription)
+        else:
+
+            @pc.on("datachannel")
+            def on_datachannel(datachannel: RTCDataChannel) -> None:
+                nonlocal channel
+                channel = datachannel
+                channel.on("message")(forward_message_to_read_stream)
+                channel_opened.set()
 
     await signaling.connect()
-    channel_opened = asyncio.Event()
-    channel_closed = asyncio.Event()
-    if params.initiator:
-        channel = pc.createDataChannel(params.channel_name)
-
-        channel.on("message")(message_handler)
-
-        @channel.on("open")
-        def on_open() -> None:
-            channel_opened.set()
-
-        @channel.on("close")
-        def on_close() -> None:
-            channel_closed.set()
-
-        await pc.setLocalDescription(await pc.createOffer())
-        await signaling.send(pc.localDescription)
-    else:
-        channel = None
-
-        @pc.on("datachannel")
-        def on_datachannel(datachannel: RTCDataChannel) -> None:
-            nonlocal channel
-            channel = datachannel
-            channel.on("message")(message_handler)
-            channel_opened.set()
-
-    async with anyio.create_task_group() as tg:
+    async with (
+        anyio.create_task_group() as tg,
+        read_stream_producer,
+        read_stream_consumer,
+        write_stream_producer,
+        write_stream_consumer,
+    ):
+        await init_pc()
         tg.start_soon(consume_signaling)
-        # messages are read via event listener
-        tg.start_soon(message_writer)
+        tg.start_soon(forward_write_stream)
         try:
-            yield read_stream, write_stream
+            yield read_stream_consumer, write_stream_producer
         finally:
-            await write_stream.aclose()
-            await read_stream.aclose()
             await pc.close()
             await signaling.close()
             tg.cancel_scope.cancel()
@@ -124,9 +137,7 @@ class WebRTCClientParameters(WebRTCParameters):
 async def webrtc_client_transport(
     signaling: BaseSignaling,
     params: WebRTCClientParameters | None = None,
-) -> AsyncGenerator[
-    tuple[MemoryObjectReceiveStream[SessionMessage | Exception], MemoryObjectReceiveStream[SessionMessage]]
-]:
+) -> AsyncGenerator[WebRTCTransportStreams]:
     async with webrtc_transport(signaling=signaling, params=params or WebRTCClientParameters()) as (
         read,
         write,
@@ -142,9 +153,7 @@ class WebRTCServerParameters(WebRTCParameters):
 async def webrtc_server_transport(
     signaling: BaseSignaling,
     params: WebRTCServerParameters | None = None,
-) -> AsyncGenerator[
-    tuple[MemoryObjectReceiveStream[SessionMessage | Exception], MemoryObjectReceiveStream[SessionMessage]]
-]:
+) -> AsyncGenerator[WebRTCTransportStreams]:
     async with webrtc_transport(signaling=signaling, params=params or WebRTCServerParameters()) as (
         read,
         write,
