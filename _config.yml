@@ -1,0 +1,7 @@
+remote_theme: pages-themes/hacker@v0.2.0
+plugins:
+- jekyll-remote-theme # add this line to the plugins list if you already have one
+title: WebRTC Transport for Model Context Protocol
+layout: default
+description: An exploration of using WebRTC as a transport mechanism for the Model Context Protocol (MCP) to enable secure, peer-to-peer connections in restricted environments.
+keywords: WebRTC, MCP, Model Context Protocol, peer-to-peer, AI integration
