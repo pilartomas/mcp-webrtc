@@ -14,11 +14,16 @@ npm install mcp-webrtc
 
 ## Usage
 
-### Server
-
 ```typescript
+  import { Client } from "@modelcontextprotocol/sdk/client/index.js";
   import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-  import { WebRTCServerTransport } from "mcp-webrtc";
+  import { MemorySignaling, WebRTCClientTransport, WebRTCServerTransport } from "mcp-webrtc";
+  import wrtc from "@roamhq/wrtc";
+
+  const client = new Client({
+    name: "example-client",
+    version: "1.0.0",
+  });
 
   const server = new McpServer({
     name: "example-server",
@@ -27,28 +32,29 @@ npm install mcp-webrtc
   server.registerTool("greet", {}, () => ({
     content: [{ type: "text", text: "Howdy" }],
   }));
-  await server.connect(new WebRTCServerTransport({
-    onSignal: async (data) => { 
-      // forward data via signalling channel and call peer.signal(data)
-    }
-  }));
-```
 
-### Client
+  const [clientSignaling, serverSignaling] =
+    await MemorySignaling.createMemorySignalingPair();
 
-```typescript
-  import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-  import { WebRTCClientTransport } from "mcp-webrtc";
-
-  const client = new Client({
-    name: "example-client",
-    version: "1.0.0",
+  const clientTransport = new WebRTCClientTransport({
+    signaling: clientSignaling,
+    peerOptions: {
+      wrtc,
+    },
   });
-  await client.connect(new WebRTCClientTransport({
-    onSignal: async (data) => { 
-      // forward data via signalling channel and call peer.signal(data)
-    }
-  }));
-```
+  const serverTransport = new WebRTCServerTransport({
+    signaling: serverSignaling,
+    peerOptions: {
+      wrtc,
+    },
+  });
 
-Proceed by exchange the signalling data via arbitrary connection.
+  await server.connect(serverTransport);
+  await client.connect(clientTransport);
+
+  const { tools } = await client.listTools();
+  console.log(tools)
+
+  await client.close();
+  await server.close();
+```

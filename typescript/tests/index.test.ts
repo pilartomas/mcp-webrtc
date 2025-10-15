@@ -1,7 +1,11 @@
 import { expect, test } from "vitest";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { WebRTCClientTransport, WebRTCServerTransport } from "../src/index.js";
+import {
+  MemorySignaling,
+  WebRTCClientTransport,
+  WebRTCServerTransport,
+} from "../src/index.js";
 import wrtc from "@roamhq/wrtc";
 
 test("client connects to server and lists tools", async () => {
@@ -20,18 +24,17 @@ test("client connects to server and lists tools", async () => {
     content: [{ type: "text", text: "Howdy" }],
   }));
 
+  const [clientSignaling, serverSignaling] =
+    await MemorySignaling.createMemorySignalingPair();
+
   const clientTransport = new WebRTCClientTransport({
-    onSignal: async (data) => {
-      await serverTransport.signal(data);
-    },
+    signaling: clientSignaling,
     peerOptions: {
       wrtc,
     },
   });
   const serverTransport = new WebRTCServerTransport({
-    onSignal: async (data) => {
-      await clientTransport.signal(data);
-    },
+    signaling: serverSignaling,
     peerOptions: {
       wrtc,
     },
@@ -44,4 +47,7 @@ test("client connects to server and lists tools", async () => {
   // List tools
   const { tools } = await client.listTools();
   expect(tools.at(0)?.name).toBe("greet");
+
+  await client.close();
+  await server.close();
 });
